@@ -22,7 +22,7 @@ curl "http://127.0.0.1:6060/debug/pprof/profile?seconds=600" > cpu.pprof
 # 本地查看
 go tool pprof -http=:8081 cpu.pprof
 ```
-# on-cpu as well as off-cpu(eg. I/O) time
+# On-cpu as well as off-cpu(eg. I/O) time
 https://github.com/felixge/fgprof
 ```golang
 import(
@@ -37,3 +37,35 @@ func main() {
 	}()
 }
 ```
+# 工具型应用开启 pprof
+## CPU
+```golang
+import "runtime/pprof"
+func main() {
+    file, _ := os.Create("./cpu.pprof") // 在当前路径下创建一个cpu.pprof文件
+    pprof.StartCPUProfile(file) // 往文件中记录CPU profile信息
+    defer func() {
+        // 退出之前 停止采集
+        pprof.StopCPUProfile()
+        file.Close()
+    }()
+}
+```
+
+## Heap
+```golang
+file, _ := os.Create("./mem.pprof")
+pprof.WriteHeapProfile(file)
+f2.Close()
+```
+# Other
+1、当 CPU 性能分析启用后，Go runtime 会每 10ms 就暂停一下，记录当前运行的 goroutine 的调用堆栈及相关数据。当性能分析数据保存到硬盘后，我们就可以分析代码中的热点了。
+2、内存性能分析则是在堆（Heap）分配的时候，记录一下调用堆栈。默认情况下，是每 1000 次分配，取样一次，这个数值可以改变。栈(Stack)分配 由于会随时释放，因此不会被内存分析所记录。由于内存分析是取样方式，并且也因为其记录的是分配内存，而不是使用内存。因此使用内存性能分析工具来准确判断程序具体的内存使用是比较困难的。
+3、阻塞分析是一个很独特的分析，它有点儿类似于 CPU 性能分析，但是它所记录的是 goroutine 等待资源所花的时间。阻塞分析对分析程序并发瓶颈非常有帮助，阻塞性能分析可以显示出什么时候出现了大批的 goroutine 被阻塞了。阻塞性能分析是特殊的分析工具，在排除 CPU 和内存瓶颈前，不应该用它来分析。
+
+# 参考
+https://juejin.cn/post/6844903992720359432
+https://www.lixueduan.com/post/go/pprof/
+https://pkg.go.dev/net/http/pprof
+https://zhuanlan.zhihu.com/p/71529062
+https://danlimerick.wordpress.com/2017/01/24/profiling-golang-programs-on-kubernetes/
