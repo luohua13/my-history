@@ -22,8 +22,16 @@ curl "http://127.0.0.1:6060/debug/pprof/profile?seconds=600" > cpu.pprof
 # 本地查看
 go tool pprof -http=:8081 cpu.pprof
 ```
-# On-cpu as well as off-cpu(eg. I/O) time
-https://github.com/felixge/fgprof
+# Go's builtin CPU Profiler
+The builtin Go CPU profiler uses the setitimer(2) system call to ask the operating system to be sent a SIGPROF signal 100 times a second. Each signal stops the Go process and gets delivered to a random thread's sigtrampgo() function. This function then proceeds to call sigprof() or sigprofNonGo() to record the thread's current stack.
+
+Since Go uses non-blocking I/O, Goroutines that wait on I/O are parked and not running on any threads. Therefore they end up being largely invisible to Go's builtin CPU profiler.
+
+# fgprof
+<https://github.com/felixge/fgprof>
+
+fgprof is implemented as a background goroutine that wakes up 99 times per second and calls runtime.GoroutineProfile. This returns a list of all goroutines regardless of their current On/Off CPU scheduling status and their call stacks.
+The overhead of fgprof increases with the number of active goroutines (including those waiting on I/O, Channels, Locks, etc.) executed by your program. 
 ```golang
 import(
 	_ "net/http/pprof"
@@ -64,8 +72,8 @@ f2.Close()
 - 阻塞分析是一个很独特的分析，它有点儿类似于 CPU 性能分析，但是它所记录的是 goroutine 等待资源所花的时间。阻塞分析对分析程序并发瓶颈非常有帮助，阻塞性能分析可以显示出什么时候出现了大批的 goroutine 被阻塞了。阻塞性能分析是特殊的分析工具，在排除 CPU 和内存瓶颈前，不应该用它来分析。
 
 # 参考
-https://juejin.cn/post/6844903992720359432
-https://www.lixueduan.com/post/go/pprof/
-https://pkg.go.dev/net/http/pprof
-https://zhuanlan.zhihu.com/p/71529062
-https://danlimerick.wordpress.com/2017/01/24/profiling-golang-programs-on-kubernetes/
+- https://juejin.cn/post/6844903992720359432
+- https://www.lixueduan.com/post/go/pprof/
+- https://pkg.go.dev/net/http/pprof
+- https://zhuanlan.zhihu.com/p/71529062
+- https://danlimerick.wordpress.com/2017/01/24/profiling-golang-programs-on-kubernetes/
